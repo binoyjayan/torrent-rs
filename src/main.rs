@@ -18,7 +18,17 @@ fn decode_bencoded_value(value: BencodeValue) -> anyhow::Result<JsonValue> {
                 .collect::<anyhow::Result<Vec<serde_json::Value>>>()?;
             JsonValue::Array(array)
         }
-        _ => anyhow::bail!("Unhandled encoded value: {:?}", value),
+        BencodeValue::Dict(d) => {
+            let object = d
+                .into_iter()
+                .map(|(k, v)| {
+                    let key = String::from_utf8(k)?;
+                    let value = decode_bencoded_value(v)?;
+                    Ok((key, value))
+                })
+                .collect::<anyhow::Result<serde_json::Map<String, serde_json::Value>>>()?;
+            JsonValue::Object(object)
+        }
     })
 }
 
