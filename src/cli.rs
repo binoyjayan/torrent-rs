@@ -14,4 +14,8 @@ pub(crate) enum Commands {
         /// The bencoded value to decode
         encoded_value: String,
     },
+    Info {
+        /// The path to the torrent file
+        file_path: String,
+    },
 }

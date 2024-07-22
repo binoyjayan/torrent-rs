@@ -1,50 +1,24 @@
 use clap::Parser;
-use serde_bencode::value::Value as BencodeValue;
-use serde_json::Value as JsonValue;
 
 mod cli;
+mod decode;
+mod torrent;
 
-fn decode_bencoded_value(value: BencodeValue) -> anyhow::Result<JsonValue> {
-    Ok(match value {
-        BencodeValue::Bytes(b) => {
-            let string = String::from_utf8(b)?;
-            JsonValue::String(string)
-        }
-        BencodeValue::Int(i) => JsonValue::Number(i.into()),
-        BencodeValue::List(l) => {
-            let array = l
-                .into_iter()
-                .map(decode_bencoded_value)
-                .collect::<anyhow::Result<Vec<serde_json::Value>>>()?;
-            JsonValue::Array(array)
-        }
-        BencodeValue::Dict(d) => {
-            let object = d
-                .into_iter()
-                .map(|(k, v)| {
-                    let key = String::from_utf8(k)?;
-                    let value = decode_bencoded_value(v)?;
-                    Ok((key, value))
-                })
-                .collect::<anyhow::Result<serde_json::Map<String, serde_json::Value>>>()?;
-            JsonValue::Object(object)
-        }
-    })
-}
-
-fn decode_bencoded_str(encoded_value: &str) -> anyhow::Result<serde_json::Value> {
-    let value: BencodeValue = serde_bencode::from_str(encoded_value)?;
-
-    decode_bencoded_value(value)
-}
+use decode::*;
+use torrent::*;
 
 fn main() -> anyhow::Result<()> {
     let cli = cli::Cli::parse();
 
     match cli.command {
         Some(cli::Commands::Decode { encoded_value }) => {
-            let decoded_value = decode_bencoded_str(&encoded_value)?;
+            let decoded_value = decode_bencoded_data(&encoded_value)?;
             println!("{}", decoded_value);
+        }
+        Some(cli::Commands::Info { file_path }) => {
+            let decoded_value = read_torrent_info(&file_path)?;
+            println!("Tracker URL: {}", decoded_value.announce);
+            println!("Length: {}", decoded_value.info.length);
         }
         None => {
             anyhow::bail!("unknown command");
